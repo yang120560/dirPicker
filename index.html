@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>选择文件夹</title>
+  <script src="https://unpkg.com/vue@2.6.11/dist/vue.js"></script>
+  <!-- 引入样式 -->
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <!-- 引入组件库 -->
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <link rel="stylesheet" href="./codemirror.css">
+  <script src="./codemirror.js"></script>
+  <script src="./mode/javascript/javascript.js"></script>
+  <style>
+    html {
+      height: 100%;
+    }
+
+    body {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+    }
+
+    .chooseFile {
+      background: #3366cc;
+      color: #fff;
+      width: 80%;
+      padding: 10px 0;
+      margin: 0 10% 10px 10%;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .leftMenu {
+      flex: 0 0 250px;
+      border-right: 1px solid #ccc;
+      padding: 10px 5px;
+      overflow: auto;
+    }
+
+    .rightContent {
+      flex: 1;
+      height: 100%;
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .text {
+      width: 100%;
+      height: calc(100% - 6px);
+      padding: 0;
+      outline: none;
+      border: none;
+      resize: none;
+      overflow: auto;
+      margin: 0;
+    }
+
+    .leftMenu::-webkit-scrollbar,
+    .text::-webkit-scrollbar,
+    .CodeMirror-scroll::-webkit-scrollbar,
+    .CodeMirror-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+      background-color: #cccccc7b;
+    }
+
+    .leftMenu::-webkit-scrollbar-thumb,
+    .text::-webkit-scrollbar-thumb,
+    .CodeMirror-scroll::-webkit-scrollbar-thumb,
+    .CodeMirror-scrollbar::-webkit-scrollbar-thumb {
+      background-color: #999999;
+      /* 滑块颜色 */
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app" style="height: 100%">
+    <div style="display:flex;height: 100%;">
+      <div class="leftMenu">
+        <button class="chooseFile" @click="openFile">选择文件夹</button>
+        <el-tree v-if="fileList" :data="fileList" :props="defaultProps" @node-click="handleNodeClick"></el-tree>
+      </div>
+      <div class="rightContent" v-loading="loading" element-loading-text="文件读取中..."
+        element-loading-spinner="el-icon-loading" element-loading-background="rgba(0, 0, 0, 0.5)">
+        <textarea id="editor" name="editor" class="text" v-if="fileText" :value="fileText"></textarea>
+      </div>
+    </div>
+  </div>
+  <script>
+    var vm = new Vue({
+      el: '#app',
+      // 选项
+      data() {
+        return {
+          fileList: null,
+          defaultProps: {
+            children: 'children',
+            label: 'name',
+          },
+          fileText: '',
+          editor: null,
+          loading: false
+        }
+      },
+      methods: {
+        // 选择文件
+        async handleNodeClick(handle) {
+          if (handle.kind === 'file') {
+            // 文件类型
+            if (this.editor) {
+              this.editor.toTextArea()
+              this.editor = null
+            }
+            const file = await handle.getFile()
+            reader = new FileReader()
+            reader.onload = (e => {
+              this.fileText = e.target.result
+              this.$nextTick(() => {
+                var textarea = document.getElementById('editor');
+                const height = textarea.offsetHeight
+                const width = textarea.offsetWidth
+                this.editor = CodeMirror.fromTextArea(textarea, { mode: "text/javascript", lineNumbers: true });
+                this.editor.setSize(width, height)//设置编辑框的尺寸
+                // editor.getValue()//获取经过转义的编辑器文本内容
+                // editor.toTextArea() //该方法得到的结果是未经过转义的数据
+                // editor.getTextArea().value //该方法得到的结果是未经过转义的数据
+                // editor.setValue(text)//设置编辑器文本内容
+                // editor.getRange({ line, ch }, { line, ch })//获取指定范围内的文本内容第一个对象是起始坐标，第二个是结束坐标
+                // editor.replaceRange(replaceStr, { line, ch }, { line, ch })//替换指定区域的内容
+                // editor.getLine(line)//获取指定行的文本内容
+                // editor.lineCount()//统计编辑器内容行数
+                // editor.firstLine()//获取第一行行数，默认为0，从开始计数
+                // editor.lastLine()//获取最后一行行数
+                // editor.getLineHandle(line)//根据行号获取行句柄
+                // editor.getSelection()//获取鼠标选中区域的代码
+                // editor.replaceSelection(str)//替换选中区域的代码
+                // editor.setSelection({ line: num, ch: num1 }, { line: num2, ch: num3 })//设置一个区域被选中
+                // editor.somethingSelected()//判断是否被选择
+                // editor.getEditor()//获取CodeMirror对像
+                // editor.undo()//撤销
+                // editor.redo()//回退
+              })
+            })
+            reader.readAsText(file, 'utf-8')
+
+          }
+        },
+        async openFile() {
+          this.loading = true
+          try {
+            this.fileText = ''
+            // 拿到一个句柄
+            const dirHandle = await window.showDirectoryPicker()
+            // 用户选择文件夹后，将会返回一个 DirectoryHandle 对象
+            // 使用 DirectoryHandle 对象进行进一步操作，例如列出文件、读取文件等
+            // 这里只是一个简单的示例，展示如何获取所选文件夹的名称
+            this.fileList = [await this.processHandle(dirHandle)]
+            this.loading = false
+          } catch (error) {
+            console.log(error)
+            this.loading = false
+          }
+        },
+        // 获取选择的文件夹的 文件及子文件
+        async processHandle(handles) {
+          if (handles.kind === 'file') {
+            return handles
+          }
+          handles.children = []
+          // 异步迭代器
+          const entries = handles.entries() // 拿到文件夹的所有文件
+          for await (const entrie of entries) {
+            const subEntrie = await this.processHandle(entrie[1])
+            handles.children.push(subEntrie)
+          }
+          return handles
+        },
+      }
+    })
+  </script>
+</body>
+
+</html>
